@@ -15,7 +15,7 @@ class Blockchain:
         self.chain = []
         self.nodes = set()
 		
-	    # Creates the genesis block
+	    # Create the genesis block
         self.new_block(previous_hash='1', proof=100)
 
     def register_node(self, address):
@@ -34,8 +34,9 @@ class Blockchain:
         else:
             raise ValueError('Invalid URL') 
 
-    def valid_chain(self, chain):
 
+
+    def valid_chain(self, chain):
         '''
         Determine if a given blockchain is valid
 
@@ -50,9 +51,8 @@ class Blockchain:
             block = chain[current_index]
             print(f'{last_block}')
             print(f'{block}')
-            print("\n------------\n")
-
-            #Check that the hash of the block is correct
+            print("\n-----------\n")
+            # Check that the hash of the block is correct
             last_block_hash = self.hash(last_block)
             if block['previous_hash'] != last_block_hash:
                 return False 
@@ -67,7 +67,6 @@ class Blockchain:
         return True
 
     def resolve_conflicts(self):
-
         '''
         This is our consensus algorithm, it resolves confilcts 
         by replacing our chain with the longest one in the network.
@@ -76,12 +75,12 @@ class Blockchain:
         '''
 
         neighbours = self.nodes
-        newchain = None
+        new_chain = None
 
         #We're only looking for chains longer than ours
         max_length = len(self.chain)
 
-        #Grab and verfify the chains from all the nodes in our network.
+        #Grab and verify the chains from all the nodes in our network.
         for node in neighbours:
             response = requests.get(f'http://{node}/chain')
 
@@ -92,25 +91,27 @@ class Blockchain:
                 #Check if the length is longer and the chain is valid
                 if length > max_length and self.valid_chain(chain):
                     max_length = length 
-                    newchain = chain 
+                    new_chain = chain 
 
         #Replacing our chain if we discovered a new, valid chain longer than ours
-        if newchain:
-            self.chain = newchain
+        if new_chain:
+            self.chain = new_chain
             return True 
 
         return False
 
-    def new_block(self, proof, previous_hash=None):
+    def new_block(self, proof, previous_hash):
+        """
+        Create a new Block in the Blockchain
 
-        # Creates a new Block and adds it to the chain
-        # Param "proof": <int> The proof given by the Proof of Work algorithm
-        # param "previous_hash": (Optional) <str> Hash of previous Block
-        # Return: <Dict> New Block
+        :param proof: The proof given by the Proof of Work algorithm
+        :param previous_hash: Hash of previous Block
+        :return: New Block
+        """
         block = {
             'index'     : len(self.chain) + 1,
             'timestamp' : time(),
-            'transaction' : self.current_transactions,
+            'transactions' : self.current_transactions,
             'proof'     : proof,
             'previous_hash' : previous_hash or self.hash(self.chain[-1]),
         }
@@ -122,63 +123,78 @@ class Blockchain:
 
     
     def new_transaction(self, sender, recipient, amount):
+        """
+        Creates a new transaction to go into the next mined Block
 
-        # Creates a new transaction to go into the next mined Block
-        # Param "sender": <str> Address of the Sender
-        # Param "recipient": <str> Address of the Recipient
-        # Param "amount": <int> Amount
-        # Return: <int> The index of the Block that will hold this Transaction       
+        :param sender: Address of the Sender
+        :param recipient: Address of the Recipient
+        :param amount: Amount
+        :return: The index of the Block that will hold this transaction
+        """     
         self.current_transactions.append({
             'sender'    : sender,
             'recipient' : recipient,
-            'amount'    : amount
+            'amount'    : amount,
         })
 
         return self.last_block['index'] + 1
 
+    @property
+    def last_block(self):
+        return self.chain[-1]
+        
+        
     @staticmethod
     def hash(block):
-        # Creates a SHA-256 hash of Block
-        # :Param block: <Dict> Block
-        # :return: <str>
+        """
+        Creates a SHA-256 hash of a Block
 
+        :param block: Block
+        """
+        
         # We must make sure that the Dictionary is Ordered, or we'll have inconsistent hashes
         block_string = json.dumps(block, sort_keys=True).encode()
         return hashlib.sha256(block_string).hexdigest()
 
-    @property
-    def last_block(self):
-        # Return the last Block in the chain
-        return self.chain[-1]
+    def proof_of_work(self, last_block):
+        """
+        Simple Proof of Work Algorithm:
 
-    def proof_of_work(self, last_proof):
+         - Find a number p' such that hash(pp') contains leading 4 zeroes
+         - Where p is the previous proof, and p' is the new proof
+         
+        :param last_block: <dict> last Block
+        :return: <int>
+        """
 
-        # Simple Proof Of Work algorithm:
-        # - Find a number p' such that hash(pp') contains leading 4 zeroes, where p is the previous p'
-        # - p is the previous proof, and p' is the new proof
-        # :param last_proof: <int>
-        # :return: <int> 
+        last_proof = last_block['proof']
+        last_hash = self.hash(last_block)
+
         proof = 0
-        while self.valid_proof(last_proof, proof) is False:
+        while self.valid_proof(last_proof, proof, last_hash) is False:
             proof += 1
 
         return proof
 
     @staticmethod
-    def valid_proof(last_proof, proof):
+    def valid_proof(last_proof, proof, last_hash):
+        """
+        Validates the Proof
 
-        # Validates the Proof: Does hash(last_proof, proof) contain 4 leading zeroes?
-        # :param last_proof: <int> Previous Proof
-        # :param proof: <int> Current Proof
-        # :return: <bool> True if correct, False if not 
-        guess       = f'{last_proof}{proof}'.encode()
-        guess_hash  = hashlib.sha256(guess).hexdigest()
+        :param last_proof: <int> Previous Proof
+        :param proof: <int> Current Proof
+        :param last_hash: <str> The hash of the Previous Block
+        :return: <bool> True if correct, False if not.
+
+        """
+        guess = f'{last_proof}{proof}{last_hash}'.encode()
+        guess_hash  =  hashlib.sha256(guess).hexdigest()
         return guess_hash[:4] == '0000'
 
-#Instantiate our Node
+#Instantiate the Node
 app = Flask(__name__)
 
-#Genrate a globally unique address for this Node
+#Generate a globally unique address for this node
 node_identifier = str(uuid4()).replace('-', '')
 
 #Instantiate the Blockchain
@@ -187,13 +203,11 @@ blockchain = Blockchain()
 @app.route('/mine', methods=['GET'])
 def mine():
     #We run the proof of work algorithm to get the next proof...
-    last_block = blockchain.last_block
-    last_proof = last_block['proof']
-    proof = blockchain.proof_of_work(last_proof)
+    last_block  = blockchain.last_block
+    proof       = blockchain.proof_of_work(last_block)
 
     #We must receive a reward for finding the proof.
     #The sender is '0' to signify that this node has mined a new coin.
-
     blockchain.new_transaction(
         sender      = '0',
         recipient   = node_identifier,
@@ -205,11 +219,11 @@ def mine():
     block = blockchain.new_block(proof, previous_hash)
 
     response = {
-        'message'   : 'New Block Forged',
-        'index'     : block['index'],
-        'transactions'  : block['transactions'],
-        'proof'         : block['proof'],
-        'previous_hash' : block['previous_hash'],
+        'message': "New Block Forged",
+        'index': block['index'],
+        'transactions': block['transactions'],
+        'proof': block['proof'],
+        'previous_hash': block['previous_hash'],
     }
     return jsonify(response), 200
 
@@ -223,17 +237,17 @@ def new_transaction():
     if not all(k in values for k in required):
         return 'Missing values', 400
 
-    #Creates a new Transaction
+    #Create a new Transaction
     index = blockchain.new_transaction(values['sender'], values['recipient'], values['amount'])
 
-    response = {'message': f'Transaction will be added to Block {index}'} 
+    response = {'message': f'Transaction will be added to Block {index}'}
     return jsonify(response), 201
 
 @app.route('/chain', methods=['GET'])
 def full_chain():
     response = {
         'chain'  : blockchain.chain,
-        'length' : len(blockchain.chain)
+        'length' : len(blockchain.chain),
     }
     return jsonify(response), 200
 
@@ -243,15 +257,15 @@ def register_nodes():
 
     nodes = values.get('nodes')
     if nodes is None:
-        return 'Error: please supply a valid list of nodes', 400
+        return "Error: Please supply a valid list of nodes", 400
 
     for node in nodes:
         blockchain.register_node(node)
 
     response = {
-        'message' : 'New nodes have added',
+        'message' : 'New nodes have been added',
         'total_nodes' : list(blockchain.nodes),
-    }    
+    }
     return jsonify(response), 201
 
 @app.route('/nodes/resolve', methods=['GET'])
@@ -260,13 +274,13 @@ def consensus():
 
     if replaced:
         response = {
-            'message' : 'Our chain was replaced',
-            'new_chain' : blockchain.chain,
+            'message' 	: 'Our chain was replaced',
+            'new_chain' : blockchain.chain
         }
     else:
         response = {
-            'message' : 'Our chain is authoritative',
-            'new_chain' : blockchain.chain,        
+            'message' 	: 'Our chain is authoritative',
+            'chain' : blockchain.chain
         }
     
     return jsonify(response), 200
@@ -275,7 +289,7 @@ if __name__ == '__main__':
     from argparse import ArgumentParser
 
     parser = ArgumentParser()
-    parser.add_argument('-p', '--port', default=5000, type=int, help='ports to listen on')
+    parser.add_argument('-p', '--port', default=5000, type=int, help='port to listen on')
     args = parser.parse_args()
     port = args.port
 
