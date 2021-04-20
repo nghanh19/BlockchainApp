@@ -1,4 +1,4 @@
-# Thanks for a article: https://hackernoon.com/learn-blockchains-by-building-one-117428612f46
+#https://hackernoon.com/learn-blockchains-by-building-one-117428612f46
 
 import  hashlib
 import  json
@@ -119,6 +119,7 @@ class Blockchain:
         # Reset the current list of transactions
         self.current_transactions = []
         self.chain.append(block)
+        
         return block
 
     
@@ -154,6 +155,7 @@ class Blockchain:
         
         # We must make sure that the Dictionary is Ordered, or we'll have inconsistent hashes
         block_string = json.dumps(block, sort_keys=True).encode()
+        
         return hashlib.sha256(block_string).hexdigest()
 
     def proof_of_work(self, last_block):
@@ -185,10 +187,11 @@ class Blockchain:
         :param proof: <int> Current Proof
         :param last_hash: <str> The hash of the Previous Block
         :return: <bool> True if correct, False if not.
-
         """
+        
         guess = f'{last_proof}{proof}{last_hash}'.encode()
         guess_hash  =  hashlib.sha256(guess).hexdigest()
+        
         return guess_hash[:4] == '0000'
 
 #Instantiate the Node
@@ -242,6 +245,7 @@ def new_transaction():
 
     response = {'message': f'Transaction will be added to Block {index}'}
     return jsonify(response), 201
+    
 
 @app.route('/chain', methods=['GET'])
 def full_chain():
@@ -250,6 +254,7 @@ def full_chain():
         'length' : len(blockchain.chain),
     }
     return jsonify(response), 200
+    
 
 @app.route('/nodes/register', methods=['POST'])
 def register_nodes():
@@ -267,6 +272,7 @@ def register_nodes():
         'total_nodes' : list(blockchain.nodes),
     }
     return jsonify(response), 201
+    
 
 @app.route('/nodes/resolve', methods=['GET'])
 def consensus():
@@ -284,6 +290,7 @@ def consensus():
         }
     
     return jsonify(response), 200
+    
 
 if __name__ == '__main__':
     from argparse import ArgumentParser
