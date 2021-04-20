@@ -15,8 +15,8 @@ class Blockchain:
         self.chain = []
         self.nodes = set()
 		
-	# Creates the genesis block
-	self.new_block(previour_hash='1', proof=100)
+	    # Creates the genesis block
+        self.new_block(previous_hash='1', proof=100)
 
     def register_node(self, address):
         '''
@@ -226,7 +226,7 @@ def new_transaction():
     #Creates a new Transaction
     index = blockchain.new_transaction(values['sender'], values['recipient'], values['amount'])
 
-    response = {'message': f 'Transaction will be added to Block {index}'} 
+    response = {'message': f'Transaction will be added to Block {index}'} 
     return jsonify(response), 201
 
 @app.route('/chain', methods=['GET'])
